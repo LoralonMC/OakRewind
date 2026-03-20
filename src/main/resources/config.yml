@@ -1,0 +1,45 @@
+# Enable automatic block rebuilding after explosions.
+# true = Explosions happen and blocks are rebuilt automatically
+# false = Normal vanilla explosions (blocks stay destroyed)
+enable-rebuild: true
+
+# Which explosion types should trigger rebuilding
+# Available types: CREEPER, TNT, MINECART_TNT, FIREBALL, WITHER_SKULL, WITHER, END_CRYSTAL
+# Note: WITHER handles the spawn explosion, WITHER_SKULL handles the projectiles
+enabled-explosion-types:
+  - CREEPER
+  - TNT
+  - MINECART_TNT
+  - FIREBALL
+  - WITHER_SKULL
+  - WITHER
+  - END_CRYSTAL
+
+# Rebuild animation settings
+rebuild:
+  # Time in milliseconds before starting the rebuild
+  initial-delay: 2000
+
+  # The rate at which the delay decreases
+  delay-falloff: 0.175
+
+  # Minimum time in milliseconds between rebuilds
+  minimum-delay: 50
+
+  # Rebuild pattern: TOP_DOWN, BOTTOM_UP, CENTER_OUT, RANDOM
+  pattern: TOP_DOWN
+
+  # Particle effects during rebuild
+  particles:
+    enabled: true
+    # Particle type: CLOUD, EXPLOSION_NORMAL, SMOKE_NORMAL, VILLAGER_HAPPY, ENCHANTMENT_TABLE
+    type: CLOUD
+    # Number of particles per block
+    count: 5
+
+# Messages (using MiniMessage format)
+# See https://docs.advntr.dev/minimessage/format.html for formatting options
+messages:
+  reload-success: "<gradient:green:aqua>OakRewind</gradient> <gray>»</gray> <green>Configuration reloaded!"
+  no-permission: "<gradient:green:aqua>OakRewind</gradient> <gray>»</gray> <red>You don't have permission to use this command."
+  usage: "<gradient:green:aqua>OakRewind</gradient> <gray>»</gray> <yellow>Rewind explosions with beautiful animations.<newline><white>/oakrewind reload</white> <gray>-</gray> Reloads the configuration."

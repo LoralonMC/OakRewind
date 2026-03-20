@@ -1,0 +1,52 @@
+plugins {
+    id 'java'
+    id("com.gradleup.shadow") version "9.3.1"
+}
+
+group = 'dev.oakheart'
+version = '1.0.0'
+
+repositories {
+    mavenCentral()
+    maven {
+        name = "papermc-repo"
+        url = "https://repo.papermc.io/repository/maven-public/"
+    }
+}
+
+dependencies {
+    compileOnly("io.papermc.paper:paper-api:1.21.10-R0.1-SNAPSHOT")
+    implementation("org.bstats:bstats-bukkit:3.1.0")
+    implementation("org.spongepowered:configurate-yaml:4.2.0-SNAPSHOT")
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
+}
+
+compileJava {
+    options.encoding = 'UTF-8'
+    options.release = 21
+    options.compilerArgs += ['-Xlint:deprecation', '-Xlint:unchecked']
+}
+
+processResources {
+    def props = [version: version]
+    inputs.properties props
+    filteringCharset 'UTF-8'
+    filesMatching(['plugin.yml', 'paper-plugin.yml']) {
+        expand props
+    }
+}
+
+shadowJar {
+    relocate 'org.bstats', 'dev.oakheart.oakrewind.bstats'
+    relocate 'org.spongepowered.configurate', 'dev.oakheart.oakrewind.configurate'
+    relocate 'org.yaml.snakeyaml', 'dev.oakheart.oakrewind.snakeyaml'
+    relocate 'io.leangen.geantyref', 'dev.oakheart.oakrewind.geantyref'
+    archiveClassifier.set('')
+}
+
+build {
+    dependsOn shadowJar
+}
