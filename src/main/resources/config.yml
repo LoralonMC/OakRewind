@@ -36,10 +36,3 @@ rebuild:
     type: CLOUD
     # Number of particles per block
     count: 5
-
-# Messages (using MiniMessage format)
-# See https://docs.advntr.dev/minimessage/format.html for formatting options
-messages:
-  reload-success: "<gradient:green:aqua>OakRewind</gradient> <gray>»</gray> <green>Configuration reloaded!"
-  no-permission: "<gradient:green:aqua>OakRewind</gradient> <gray>»</gray> <red>You don't have permission to use this command."
-  usage: "<gradient:green:aqua>OakRewind</gradient> <gray>»</gray> <yellow>Rewind explosions with beautiful animations.<newline><white>/oakrewind reload</white> <gray>-</gray> Reloads the configuration."

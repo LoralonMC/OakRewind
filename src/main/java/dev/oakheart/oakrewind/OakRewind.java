@@ -1,8 +1,8 @@
 package dev.oakheart.oakrewind;
 
+import dev.oakheart.message.MessageManager;
 import dev.oakheart.oakrewind.config.ConfigManager;
 import dev.oakheart.oakrewind.listeners.ExplosionListener;
-import dev.oakheart.oakrewind.message.MessageManager;
 import org.bstats.bukkit.Metrics;
 import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -43,8 +43,8 @@ public final class OakRewind extends JavaPlugin {
         configManager = new ConfigManager(this);
         configManager.load();
 
-        messageManager = new MessageManager();
-        messageManager.load(configManager.getConfig());
+        messageManager = new MessageManager(this, getLogger());
+        messageManager.load();
     }
 
     private void registerListeners() {
@@ -76,7 +76,7 @@ public final class OakRewind extends JavaPlugin {
 
     public void reloadCustomConfig() {
         configManager.reload();
-        messageManager.load(configManager.getConfig());
+        messageManager.reload();
 
         // Unregister the old listener
         HandlerList.unregisterAll(explosionListener);

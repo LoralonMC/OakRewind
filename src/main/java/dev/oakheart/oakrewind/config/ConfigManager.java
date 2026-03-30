@@ -3,9 +3,6 @@ package dev.oakheart.oakrewind.config;
 import dev.oakheart.oakrewind.OakRewind;
 import org.bukkit.Particle;
 import org.bukkit.entity.EntityType;
-import org.spongepowered.configurate.ConfigurationNode;
-import org.spongepowered.configurate.serialize.SerializationException;
-import org.spongepowered.configurate.yaml.YamlConfigurationLoader;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -15,7 +12,7 @@ import java.util.List;
 import java.util.logging.Logger;
 
 /**
- * Manages plugin configuration with Configurate, validation, caching, and safe reload.
+ * Manages plugin configuration with OakheartLib ConfigManager, validation, caching, and safe reload.
  */
 public class ConfigManager {
 
@@ -31,8 +28,8 @@ public class ConfigManager {
 
     private final OakRewind plugin;
     private final Logger logger;
-    private final YamlConfigurationLoader loader;
-    private ConfigurationNode config;
+    private final Path configPath;
+    private dev.oakheart.config.ConfigManager config;
 
     // Cached config values
     private boolean enableRebuild;
@@ -48,10 +45,7 @@ public class ConfigManager {
     public ConfigManager(OakRewind plugin) {
         this.plugin = plugin;
         this.logger = plugin.getLogger();
-        Path configPath = plugin.getDataFolder().toPath().resolve("config.yml");
-        this.loader = YamlConfigurationLoader.builder()
-                .path(configPath)
-                .build();
+        this.configPath = plugin.getDataFolder().toPath().resolve("config.yml");
     }
 
     /**
@@ -59,12 +53,11 @@ public class ConfigManager {
      */
     public void load() {
         try {
-            Path configPath = plugin.getDataFolder().toPath().resolve("config.yml");
             if (!Files.exists(configPath)) {
                 plugin.saveResource("config.yml", false);
             }
 
-            config = loader.load();
+            config = dev.oakheart.config.ConfigManager.load(configPath);
             mergeDefaults();
             validate(config);
             cacheValues();
@@ -80,14 +73,13 @@ public class ConfigManager {
      */
     public boolean reload() {
         try {
-            ConfigurationNode newConfig = loader.load();
+            config.reload();
 
-            if (!validate(newConfig)) {
+            if (!validate(config)) {
                 logger.warning("Configuration reload failed validation. Keeping previous configuration.");
                 return false;
             }
 
-            this.config = newConfig;
             cacheValues();
             logger.info("Configuration reloaded successfully.");
             return true;
@@ -102,12 +94,14 @@ public class ConfigManager {
      * without overwriting existing values.
      */
     private void mergeDefaults() throws IOException {
-        YamlConfigurationLoader defaultLoader = YamlConfigurationLoader.builder()
-                .url(getClass().getResource("/config.yml"))
-                .build();
-        ConfigurationNode defaults = defaultLoader.load();
-        config.mergeFrom(defaults);
-        loader.save(config);
+        try (var stream = plugin.getResource("config.yml")) {
+            if (stream != null) {
+                var defaults = dev.oakheart.config.ConfigManager.fromStream(stream);
+                if (config.mergeDefaults(defaults)) {
+                    config.save();
+                }
+            }
+        }
     }
 
     /**
@@ -116,55 +110,50 @@ public class ConfigManager {
      * @param configToValidate the configuration to validate
      * @return true if no fatal errors were found
      */
-    private boolean validate(ConfigurationNode configToValidate) {
+    private boolean validate(dev.oakheart.config.ConfigManager configToValidate) {
         List<String> warnings = new ArrayList<>();
 
-        long initDelay = configToValidate.node("rebuild", "initial-delay").getLong(2000);
+        long initDelay = configToValidate.getLong("rebuild.initial-delay", 2000);
         if (initDelay < 0) {
             warnings.add("rebuild.initial-delay must be >= 0, got: " + initDelay + ". Using default: 2000");
         }
 
-        double falloff = configToValidate.node("rebuild", "delay-falloff").getDouble(0.175);
+        double falloff = configToValidate.getDouble("rebuild.delay-falloff", 0.175);
         if (falloff < 0.0 || falloff > 1.0) {
             warnings.add("rebuild.delay-falloff must be between 0.0 and 1.0, got: " + falloff + ". Using default: 0.175");
         }
 
-        long minDelay = configToValidate.node("rebuild", "minimum-delay").getLong(50);
+        long minDelay = configToValidate.getLong("rebuild.minimum-delay", 50);
         if (minDelay < 0) {
             warnings.add("rebuild.minimum-delay must be >= 0, got: " + minDelay + ". Using default: 50");
         }
 
-        int pCount = configToValidate.node("rebuild", "particles", "count").getInt(5);
+        int pCount = configToValidate.getInt("rebuild.particles.count", 5);
         if (pCount < 0 || pCount > 100) {
             warnings.add("rebuild.particles.count must be between 0 and 100, got: " + pCount + ". Using default: 5");
         }
 
-        String patternName = configToValidate.node("rebuild", "pattern").getString("TOP_DOWN");
+        String patternName = configToValidate.getString("rebuild.pattern", "TOP_DOWN");
         try {
             RebuildPattern.valueOf(patternName.toUpperCase());
         } catch (IllegalArgumentException e) {
             warnings.add("Invalid rebuild.pattern: " + patternName + ". Using default: TOP_DOWN");
         }
 
-        String particleTypeName = configToValidate.node("rebuild", "particles", "type").getString("CLOUD");
+        String particleTypeName = configToValidate.getString("rebuild.particles.type", "CLOUD");
         try {
             Particle.valueOf(particleTypeName.toUpperCase());
         } catch (IllegalArgumentException e) {
             warnings.add("Invalid rebuild.particles.type: " + particleTypeName + ". Using default: CLOUD");
         }
 
-        try {
-            List<String> explosionTypeNames = configToValidate.node("enabled-explosion-types")
-                    .getList(String.class, List.of());
-            for (String typeName : explosionTypeNames) {
-                try {
-                    EntityType.valueOf(typeName.toUpperCase());
-                } catch (IllegalArgumentException e) {
-                    warnings.add("Invalid explosion type: " + typeName);
-                }
+        List<String> explosionTypeNames = configToValidate.getStringList("enabled-explosion-types");
+        for (String typeName : explosionTypeNames) {
+            try {
+                EntityType.valueOf(typeName.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                warnings.add("Invalid explosion type: " + typeName);
             }
-        } catch (SerializationException e) {
-            warnings.add("Failed to read enabled-explosion-types: " + e.getMessage());
         }
 
         if (!warnings.isEmpty()) {
@@ -180,43 +169,38 @@ public class ConfigManager {
      * Caches frequently accessed config values as typed fields.
      */
     private void cacheValues() {
-        enableRebuild = config.node("enable-rebuild").getBoolean(true);
+        enableRebuild = config.getBoolean("enable-rebuild", true);
 
         // Load enabled explosion types
         enabledExplosionTypes = new ArrayList<>();
-        try {
-            List<String> explosionTypeNames = config.node("enabled-explosion-types")
-                    .getList(String.class, List.of());
-            if (explosionTypeNames.isEmpty()) {
-                enabledExplosionTypes.add(EntityType.CREEPER);
-            } else {
-                for (String typeName : explosionTypeNames) {
-                    try {
-                        enabledExplosionTypes.add(EntityType.valueOf(typeName.toUpperCase()));
-                    } catch (IllegalArgumentException e) {
-                        // Already warned in validate()
-                    }
-                }
-                if (enabledExplosionTypes.isEmpty()) {
-                    enabledExplosionTypes.add(EntityType.CREEPER);
+        List<String> explosionTypeNames = config.getStringList("enabled-explosion-types");
+        if (explosionTypeNames.isEmpty()) {
+            enabledExplosionTypes.add(EntityType.CREEPER);
+        } else {
+            for (String typeName : explosionTypeNames) {
+                try {
+                    enabledExplosionTypes.add(EntityType.valueOf(typeName.toUpperCase()));
+                } catch (IllegalArgumentException e) {
+                    // Already warned in validate()
                 }
             }
-        } catch (SerializationException e) {
-            enabledExplosionTypes.add(EntityType.CREEPER);
+            if (enabledExplosionTypes.isEmpty()) {
+                enabledExplosionTypes.add(EntityType.CREEPER);
+            }
         }
 
         // Rebuild settings
-        initialRebuildDelay = config.node("rebuild", "initial-delay").getLong(2000);
+        initialRebuildDelay = config.getLong("rebuild.initial-delay", 2000);
         if (initialRebuildDelay < 0) initialRebuildDelay = 2000;
 
-        delayFalloff = config.node("rebuild", "delay-falloff").getDouble(0.175);
+        delayFalloff = config.getDouble("rebuild.delay-falloff", 0.175);
         if (delayFalloff < 0.0 || delayFalloff > 1.0) delayFalloff = 0.175;
 
-        minimumRebuildDelay = config.node("rebuild", "minimum-delay").getLong(50);
+        minimumRebuildDelay = config.getLong("rebuild.minimum-delay", 50);
         if (minimumRebuildDelay < 0) minimumRebuildDelay = 50;
 
         // Rebuild pattern
-        String patternName = config.node("rebuild", "pattern").getString("TOP_DOWN");
+        String patternName = config.getString("rebuild.pattern", "TOP_DOWN");
         try {
             rebuildPattern = RebuildPattern.valueOf(patternName.toUpperCase());
         } catch (IllegalArgumentException e) {
@@ -224,23 +208,23 @@ public class ConfigManager {
         }
 
         // Particle settings
-        particlesEnabled = config.node("rebuild", "particles", "enabled").getBoolean(true);
+        particlesEnabled = config.getBoolean("rebuild.particles.enabled", true);
 
-        String particleTypeName = config.node("rebuild", "particles", "type").getString("CLOUD");
+        String particleTypeName = config.getString("rebuild.particles.type", "CLOUD");
         try {
             particleType = Particle.valueOf(particleTypeName.toUpperCase());
         } catch (IllegalArgumentException e) {
             particleType = Particle.CLOUD;
         }
 
-        particleCount = config.node("rebuild", "particles", "count").getInt(5);
+        particleCount = config.getInt("rebuild.particles.count", 5);
         if (particleCount < 0 || particleCount > 100) particleCount = 5;
     }
 
     /**
-     * Gets the raw ConfigurationNode for direct access.
+     * Gets the raw config for direct access.
      */
-    public ConfigurationNode getConfig() {
+    public dev.oakheart.config.ConfigManager getConfig() {
         return config;
     }
 

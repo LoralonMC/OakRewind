@@ -7,6 +7,7 @@ group = 'dev.oakheart'
 version = '1.0.0'
 
 repositories {
+    mavenLocal()
     mavenCentral()
     maven {
         name = "papermc-repo"
@@ -17,7 +18,7 @@ repositories {
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.10-R0.1-SNAPSHOT")
     implementation("org.bstats:bstats-bukkit:3.1.0")
-    implementation("org.spongepowered:configurate-yaml:4.2.0-SNAPSHOT")
+    implementation("dev.oakheart:oakheart-core:1.1.0")
 }
 
 java {
@@ -41,9 +42,10 @@ processResources {
 
 shadowJar {
     relocate 'org.bstats', 'dev.oakheart.oakrewind.bstats'
-    relocate 'org.spongepowered.configurate', 'dev.oakheart.oakrewind.configurate'
-    relocate 'org.yaml.snakeyaml', 'dev.oakheart.oakrewind.snakeyaml'
-    relocate 'io.leangen.geantyref', 'dev.oakheart.oakrewind.geantyref'
+    relocate 'dev.oakheart.config', 'dev.oakheart.oakrewind.libs.config'
+    relocate 'dev.oakheart.message', 'dev.oakheart.oakrewind.libs.message'
+    relocate 'dev.oakheart.command', 'dev.oakheart.oakrewind.libs.command'
+    relocate 'dev.oakheart.util', 'dev.oakheart.oakrewind.libs.util'
     archiveClassifier.set('')
 }
 

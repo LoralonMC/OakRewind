@@ -1,0 +1,7 @@
+# OakRewind Messages
+# MiniMessage format: https://docs.advntr.dev/minimessage/format.html
+# Set any message to "" to disable it.
+commands:
+  reload-success: "<gradient:green:aqua>OakRewind</gradient> <gray>»</gray> <green>Configuration reloaded!"
+  no-permission: "<gradient:green:aqua>OakRewind</gradient> <gray>»</gray> <red>You don't have permission to use this command."
+  usage: "<gradient:green:aqua>OakRewind</gradient> <gray>»</gray> <yellow>Rewind explosions with beautiful animations.<newline><white>/oakrewind reload</white> <gray>-</gray> Reloads the configuration."
