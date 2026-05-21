@@ -2,7 +2,7 @@ name: OakRewind
 version: '${version}'
 main: dev.oakheart.oakrewind.OakRewind
 description: 'Rewind explosions with beautiful rebuilding animations.'
-api-version: '1.21.10'
+api-version: '26.1.2'
 authors:
   - Loralon
 website: https://github.com/LoralonMC/OakRewind
