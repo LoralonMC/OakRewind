@@ -287,10 +287,13 @@ public class WorldRebuildHandler {
 
         @Override
         public int compare(final BlockState a, final BlockState b) {
-            // Sort by distance to top-most center. Last block will be rebuilt first.
+            // Sort DESCENDING by distance to the reference point: blocks are
+            // consumed from the END of the list, so the block NEAREST the
+            // reference rebuilds first. Ascending order inverted every pattern
+            // (TOP_DOWN built bottom-up, CENTER_OUT built edge-in).
             final double da = a.getLocation().toVector().subtract(referencePoint).lengthSquared();
             final double db = b.getLocation().toVector().subtract(referencePoint).lengthSquared();
-            return Double.compare(da, db);
+            return Double.compare(db, da);
         }
     }
 }

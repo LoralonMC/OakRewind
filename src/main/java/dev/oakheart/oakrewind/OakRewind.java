@@ -74,8 +74,9 @@ public final class OakRewind extends JavaPlugin {
         new Metrics(this, 27921);
     }
 
-    public void reloadCustomConfig() {
-        configManager.reload();
+    /** @return false when the new config failed validation (old values kept). */
+    public boolean reloadCustomConfig() {
+        boolean configOk = configManager.reload();
         messageManager.reload();
 
         // Unregister the old listener
@@ -86,6 +87,7 @@ public final class OakRewind extends JavaPlugin {
 
         // Reinitialize listeners with new config
         registerListeners();
+        return configOk;
     }
 
     public ConfigManager getConfigManager() {

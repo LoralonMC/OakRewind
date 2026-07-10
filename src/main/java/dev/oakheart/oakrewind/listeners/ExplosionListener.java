@@ -44,7 +44,11 @@ public class ExplosionListener implements Listener {
      *
      * @param event the explosion event
      */
-    @EventHandler
+    // HIGHEST + ignoreCancelled: without these, an explosion cancelled by a
+    // protection plugin (Lands claims) was still rebuilt, meaning this plugin
+    // itself removed and restored blocks inside protected land, and any plugin
+    // pruning blockList() at a lower priority was silently overridden.
+    @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST, ignoreCancelled = true)
     public void onEntityExplode(EntityExplodeEvent event) {
         // Check if entity is null (shouldn't happen but be safe)
         if (event.getEntity() == null) {

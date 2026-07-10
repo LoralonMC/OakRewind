@@ -27,7 +27,8 @@ rebuild:
   minimum-delay: 50
 
   # Rebuild pattern: TOP_DOWN, BOTTOM_UP, CENTER_OUT, RANDOM
-  pattern: TOP_DOWN
+  # BOTTOM_UP gives the classic ground-up regrowth animation.
+  pattern: BOTTOM_UP
 
   # Particle effects during rebuild
   particles:

@@ -37,8 +37,11 @@ public class OakRewindCommand {
                 .then(Commands.literal("reload")
                         .requires(src -> src.getSender().hasPermission("oakrewind.reload"))
                         .executes(ctx -> {
-                            plugin.reloadCustomConfig();
-                            messages().sendCommand(ctx.getSource().getSender(), "reload-success");
+                            if (plugin.reloadCustomConfig()) {
+                                messages().sendCommand(ctx.getSource().getSender(), "reload-success");
+                            } else {
+                                messages().sendCommand(ctx.getSource().getSender(), "reload-failed");
+                            }
                             return Command.SINGLE_SUCCESS;
                         }))
                 .build();
