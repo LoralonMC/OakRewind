@@ -64,8 +64,12 @@ public class ExplosionListener implements Listener {
 
         // Only handle configured explosion types when rebuild is enabled
         if (configEnableRebuild && configEnabledExplosionTypes.contains(entityType)) {
-            // Hide the entities this blast already shielded during its damage phase, which ran
-            // earlier in this same tick, and reveal them once the blocks are back.
+            // Also take custody of hanging entities the blast never touched but whose support
+            // block is about to be cleared. Must happen before rebuild() turns them to air.
+            protectionManager.markHangingLosingSupport(event.blockList());
+
+            // Hide the entities this blast shielded during its damage phase, which ran earlier
+            // in this same tick, and reveal them once the blocks are back.
             Runnable revealEntities = protectionManager.claimPending();
 
             // Let the explosion happen normally, then rebuild the blocks

@@ -41,8 +41,10 @@ public class EntityProtectionListener implements Listener {
      * branch fires this event before {@code brokenByAnything()}, which is what drops the
      * stand and everything equipped on it, so a cancel means no item ever enters the world.
      * Marker stands never reach this path — vanilla already treats them as immune.</p>
+     *
+     * <p>Deliberately not {@code ignoreCancelled}: see {@link #onHangingBreak}.</p>
      */
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onEntityDamage(EntityDamageEvent event) {
         if (event.getCause() != EntityDamageEvent.DamageCause.ENTITY_EXPLOSION) {
             return;
@@ -71,8 +73,15 @@ public class EntityProtectionListener implements Listener {
      *
      * <p>Breaks by an entity are deliberately left alone, so a player can still take down a
      * shielded item frame by hand while the rebuild runs.</p>
+     *
+     * <p>Deliberately not {@code ignoreCancelled}. Another plugin may already protect item
+     * frames from explosions and cancel this first — several invisible-item-frame plugins do
+     * exactly that. Skipping those events would leave the frame alive but unknown to us: never
+     * hidden, and never guarded against the {@code survives()} check below, so it would sit
+     * visibly in mid-air and then pop once its support block was gone. We still need to take
+     * custody of a frame someone else saved, so cancelling it again is harmless and required.</p>
      */
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onHangingBreak(HangingBreakEvent event) {
         Entity entity = event.getEntity();
         if (!protectionManager.isProtectedType(entity.getType())) {

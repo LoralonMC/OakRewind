@@ -1,13 +1,17 @@
 package dev.oakheart.oakrewind.managers;
 
 import org.bukkit.Location;
+import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
+import org.bukkit.entity.Hanging;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.util.BoundingBox;
 import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -97,6 +101,59 @@ public class EntityProtectionManager {
                 purgeScheduled = false;
             });
         }
+    }
+
+    /**
+     * Marks hanging entities that are about to lose the block holding them up.
+     *
+     * <p>An explosion only damages what it can see. A frame flat against a wall with the blast
+     * on the far side takes no damage at all — the wall shields it — so nothing marks it, yet
+     * the rebuild still removes that wall out from under it. Its {@code survives()} check then
+     * finds air behind it and pops it seconds later, long after the blast appeared to spare it.
+     * Whether a hanging entity was hit and whether it loses its support are simply different
+     * questions, so both have to be asked.</p>
+     *
+     * <p>Call before the blocks are cleared, while the world can still be inspected. Marking an
+     * entity twice is harmless — the claim skips anything already hidden.</p>
+     */
+    public void markHangingLosingSupport(List<Block> destroyedBlocks) {
+        if (!enabled || destroyedBlocks.isEmpty()) {
+            return;
+        }
+
+        Set<Block> destroyed = new HashSet<>(destroyedBlocks);
+        BoundingBox blast = null;
+        for (Block block : destroyedBlocks) {
+            BoundingBox box = BoundingBox.of(block);
+            blast = (blast == null) ? box : blast.union(box);
+        }
+        // A hanging entity sits in the block next to the one holding it, so a one-block margin
+        // is enough to catch every candidate.
+        blast.expand(1.0);
+
+        for (Entity entity : destroyedBlocks.get(0).getWorld().getNearbyEntities(blast)) {
+            if (!(entity instanceof Hanging) || !isProtectedType(entity.getType()) || isHidden(entity)) {
+                continue;
+            }
+            if (losesSupport(entity, destroyed)) {
+                markPending(entity);
+            }
+        }
+    }
+
+    /**
+     * @return true if any block this hanging entity rests against is being destroyed
+     */
+    private boolean losesSupport(Entity hanging, Set<Block> destroyed) {
+        // Use the whole bounding box rather than just the entity's own block: a painting spans
+        // several blocks and can be dropped by losing any one of the blocks behind it.
+        BoundingBox area = hanging.getBoundingBox().expand(0.5);
+        for (Block block : destroyed) {
+            if (area.overlaps(BoundingBox.of(block))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
