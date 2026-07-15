@@ -18,7 +18,7 @@ repositories {
 dependencies {
     compileOnly("io.papermc.paper:paper-api:26.1.2.build.+")
     implementation("org.bstats:bstats-bukkit:3.1.0")
-    implementation("dev.oakheart:oakheart-core:1.2.0")
+    implementation("dev.oakheart:oakheart-core:1.3.0")
 }
 
 java {

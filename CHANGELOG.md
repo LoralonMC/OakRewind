@@ -7,11 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Rewind armor stands, item frames, glow item frames and paintings caught in an explosion.
+  They no longer break and drop their contents; instead they are hidden for the duration of
+  the rebuild and reappear once the blocks are back. Configure under `restore-entities`.
+- Add `config-version` to config.yml so future updates can migrate settings automatically
+
 ### Changed
 
 - Migrate from Configurate to OakheartLib for config management and message handling
 - Move messages from config.yml to separate messages.yml (auto-migrated on first load)
 - Replace Brigadier boilerplate with CommandRegistrar from OakheartLib
+- Sync config.yml comment updates onto existing configs on startup, leaving any comments
+  you wrote yourself untouched
+
+### Fixed
+
+- Correct the `MINECART_TNT` explosion type to `TNT_MINECART`. The old name did not exist,
+  so TNT minecart explosions were never rebuilt and logged an "Invalid explosion type"
+  warning on startup. Existing configs are corrected automatically.
 
 ## [1.0.0] - 2025-02-21
 

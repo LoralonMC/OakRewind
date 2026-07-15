@@ -1,6 +1,7 @@
 package dev.oakheart.oakrewind.listeners;
 
 import dev.oakheart.oakrewind.WorldRebuildHandler;
+import dev.oakheart.oakrewind.managers.EntityProtectionManager;
 import org.bukkit.entity.EntityType;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -20,6 +21,7 @@ import java.util.List;
  */
 public class ExplosionListener implements Listener {
     private final WorldRebuildHandler worldRebuildHandler;
+    private final EntityProtectionManager protectionManager;
     private final boolean configEnableRebuild;
     private final List<EntityType> configEnabledExplosionTypes;
 
@@ -27,11 +29,14 @@ public class ExplosionListener implements Listener {
      * Creates a new ExplosionListener with the specified configuration.
      *
      * @param worldRebuildHandler the handler responsible for rebuilding blocks
+     * @param protectionManager the manager holding entities shielded from this explosion
      * @param enableRebuild whether rebuilding is enabled
      * @param enabledExplosionTypes list of entity types whose explosions should trigger rebuilding
      */
-    public ExplosionListener(WorldRebuildHandler worldRebuildHandler, boolean enableRebuild, List<EntityType> enabledExplosionTypes) {
+    public ExplosionListener(WorldRebuildHandler worldRebuildHandler, EntityProtectionManager protectionManager,
+                             boolean enableRebuild, List<EntityType> enabledExplosionTypes) {
         this.worldRebuildHandler = worldRebuildHandler;
+        this.protectionManager = protectionManager;
         this.configEnableRebuild = enableRebuild;
         this.configEnabledExplosionTypes = enabledExplosionTypes;
     }
@@ -59,8 +64,12 @@ public class ExplosionListener implements Listener {
 
         // Only handle configured explosion types when rebuild is enabled
         if (configEnableRebuild && configEnabledExplosionTypes.contains(entityType)) {
+            // Hide the entities this blast already shielded during its damage phase, which ran
+            // earlier in this same tick, and reveal them once the blocks are back.
+            Runnable revealEntities = protectionManager.claimPending();
+
             // Let the explosion happen normally, then rebuild the blocks
-            worldRebuildHandler.rebuild(new ArrayList<>(event.blockList()));
+            worldRebuildHandler.rebuild(new ArrayList<>(event.blockList()), revealEntities);
         }
     }
 }

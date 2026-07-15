@@ -2,7 +2,9 @@ package dev.oakheart.oakrewind;
 
 import dev.oakheart.message.MessageManager;
 import dev.oakheart.oakrewind.config.ConfigManager;
+import dev.oakheart.oakrewind.listeners.EntityProtectionListener;
 import dev.oakheart.oakrewind.listeners.ExplosionListener;
+import dev.oakheart.oakrewind.managers.EntityProtectionManager;
 import org.bstats.bukkit.Metrics;
 import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -12,6 +14,8 @@ import java.util.logging.Level;
 public final class OakRewind extends JavaPlugin {
 
     private ExplosionListener explosionListener;
+    private EntityProtectionListener entityProtectionListener;
+    private EntityProtectionManager entityProtectionManager;
     private WorldRebuildHandler worldRebuildHandler;
     private ConfigManager configManager;
     private MessageManager messageManager;
@@ -33,8 +37,13 @@ public final class OakRewind extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        // Finishing the rebuilds reveals their entities through the completion callbacks;
+        // revealAll then catches anything that was shielded but never claimed by a rebuild.
         if (worldRebuildHandler != null) {
             worldRebuildHandler.shutdown();
+        }
+        if (entityProtectionManager != null) {
+            entityProtectionManager.revealAll();
         }
         getLogger().info("OakRewind has been disabled!");
     }
@@ -58,12 +67,24 @@ public final class OakRewind extends JavaPlugin {
                 configManager.getParticleType(),
                 configManager.getParticleCount()
         );
+        entityProtectionManager = new EntityProtectionManager(
+                this,
+                configManager.isRestoreEntitiesEnabled(),
+                configManager.getRestoredEntityTypes()
+        );
         explosionListener = new ExplosionListener(
                 worldRebuildHandler,
+                entityProtectionManager,
+                configManager.isEnableRebuild(),
+                configManager.getEnabledExplosionTypes()
+        );
+        entityProtectionListener = new EntityProtectionListener(
+                entityProtectionManager,
                 configManager.isEnableRebuild(),
                 configManager.getEnabledExplosionTypes()
         );
         getServer().getPluginManager().registerEvents(explosionListener, this);
+        getServer().getPluginManager().registerEvents(entityProtectionListener, this);
     }
 
     private void registerCommands() {
@@ -79,11 +100,14 @@ public final class OakRewind extends JavaPlugin {
         boolean configOk = configManager.reload();
         messageManager.reload();
 
-        // Unregister the old listener
+        // Unregister the old listeners
         HandlerList.unregisterAll(explosionListener);
+        HandlerList.unregisterAll(entityProtectionListener);
 
-        // Finish all ongoing rebuilds immediately before creating new handler
+        // Finish all ongoing rebuilds immediately before creating new handler. This reveals
+        // any hidden entities, so no shielded entity is stranded by the manager being replaced.
         worldRebuildHandler.shutdown();
+        entityProtectionManager.revealAll();
 
         // Reinitialize listeners with new config
         registerListeners();

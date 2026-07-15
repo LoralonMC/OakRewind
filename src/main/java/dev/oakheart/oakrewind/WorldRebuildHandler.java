@@ -74,6 +74,18 @@ public class WorldRebuildHandler {
      * @param blocks the list of blocks to rebuild
      */
     public void rebuild(final List<Block> blocks) {
+        rebuild(blocks, null);
+    }
+
+    /**
+     * Schedules the rebuilding of destroyed blocks, then runs a callback once they are back.
+     *
+     * @param blocks the list of blocks to rebuild
+     * @param onComplete run on the main thread when the last block is placed, or null for none.
+     *                   Always runs exactly once, including when the rebuild is finished early
+     *                   by {@link #shutdown()} or when there was nothing to rebuild at all.
+     */
+    public void rebuild(final List<Block> blocks, final Runnable onComplete) {
         // Store a snapshot of all block states
         final List<BlockState> states = new ArrayList<>();
         for (Block block : blocks) {
@@ -87,8 +99,17 @@ public class WorldRebuildHandler {
             setAirNoDrops(block);
         }
 
+        // Nothing to rebuild: an empty rebuilder would never be scheduled and so would never
+        // complete, stranding anything waiting on the callback.
+        if (states.isEmpty()) {
+            if (onComplete != null) {
+                onComplete.run();
+            }
+            return;
+        }
+
         // Schedule rebuild
-        blockRebuilders.add(new BlockRebuilder(states));
+        blockRebuilders.add(new BlockRebuilder(states, onComplete));
     }
 
     private long msToTicks(long ms) {
@@ -121,11 +142,14 @@ public class WorldRebuildHandler {
 
     public class BlockRebuilder implements Runnable {
         private final List<BlockState> states;
+        private final Runnable onComplete;
         private BukkitTask task = null;
         private long blocksRebuilt = 0;
+        private boolean completed = false;
 
-        public BlockRebuilder(final List<BlockState> states) {
+        public BlockRebuilder(final List<BlockState> states, final Runnable onComplete) {
             this.states = states;
+            this.onComplete = onComplete;
             if (this.states.isEmpty()) {
                 return;
             }
@@ -199,6 +223,15 @@ public class WorldRebuildHandler {
         private void finish() {
             task = null;
             WorldRebuildHandler.this.blockRebuilders.remove(this);
+
+            // Guarded: finish() is reachable both from the normal run() path and from
+            // finishNow(), and the callback must not fire twice.
+            if (!completed) {
+                completed = true;
+                if (onComplete != null) {
+                    onComplete.run();
+                }
+            }
         }
 
         private void rebuildNextBlock() {
@@ -266,7 +299,10 @@ public class WorldRebuildHandler {
      * Cancels all active rebuilders without finishing the rebuilds.
      *
      * <p>This method stops all ongoing rebuilds immediately, leaving blocks unrestored.
-     * Note: Currently unused - use {@link #shutdown()} instead to finish rebuilds properly.</p>
+     * Completion callbacks still run, so anything waiting on a rebuild (such as hidden
+     * entities waiting to be revealed) is released rather than left in limbo.</p>
+     *
+     * <p>Note: Currently unused - use {@link #shutdown()} instead to finish rebuilds properly.</p>
      */
     public void cancelAllRebuilders() {
         Set<BlockRebuilder> rebuildersCopy = new HashSet<>(blockRebuilders);
@@ -274,6 +310,7 @@ public class WorldRebuildHandler {
             if (blockRebuilder.task != null) {
                 blockRebuilder.task.cancel();
             }
+            blockRebuilder.finish();
         }
         blockRebuilders.clear();
     }

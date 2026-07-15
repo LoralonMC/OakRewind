@@ -4,16 +4,47 @@
 enable-rebuild: true
 
 # Which explosion types should trigger rebuilding
-# Available types: CREEPER, TNT, MINECART_TNT, FIREBALL, WITHER_SKULL, WITHER, END_CRYSTAL
+# Available types: CREEPER, TNT, TNT_MINECART, FIREBALL, WITHER_SKULL, WITHER, END_CRYSTAL
 # Note: WITHER handles the spawn explosion, WITHER_SKULL handles the projectiles
 enabled-explosion-types:
   - CREEPER
   - TNT
-  - MINECART_TNT
+  - TNT_MINECART
   - FIREBALL
   - WITHER_SKULL
   - WITHER
   - END_CRYSTAL
+
+# ============================================================
+# ENTITY RESTORATION
+# ============================================================
+# Explosions destroy decoration entities (armor stands, item frames, paintings)
+# and scatter their contents as drops. Because the server damages entities
+# before it breaks blocks, those entities are already gone by the time a
+# rebuild starts, so they cannot simply be "put back".
+#
+# Instead, OakRewind shields them: the explosion damage is cancelled outright,
+# so nothing is ever dropped or destroyed. The entity is then hidden for the
+# duration of the rebuild and revealed once the blocks are back, so it looks
+# like it rewinds along with everything else.
+#
+# Because the entity never actually leaves the world, it keeps its UUID and all
+# of its data. Plugins that track armor stands (furniture, custom models, etc.)
+# continue to work, and no items can ever be duplicated.
+#
+# Only applies to explosion types listed in enabled-explosion-types above.
+restore-entities:
+  enabled: true
+
+  # Which entities to protect.
+  # Available types: ARMOR_STAND, ITEM_FRAME, GLOW_ITEM_FRAME, PAINTING
+  # Note: display and interaction entities are immune to explosions in vanilla,
+  # so they never need protecting.
+  types:
+    - ARMOR_STAND
+    - ITEM_FRAME
+    - GLOW_ITEM_FRAME
+    - PAINTING
 
 # Rebuild animation settings
 rebuild:
@@ -37,3 +68,8 @@ rebuild:
     type: CLOUD
     # Number of particles per block
     count: 5
+
+# ========================================
+#          DO NOT EDIT BELOW
+# ========================================
+config-version: 1
