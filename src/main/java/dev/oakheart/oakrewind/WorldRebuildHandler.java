@@ -314,13 +314,11 @@ public class WorldRebuildHandler {
             ++blocksRebuilt;
 
             // Break any block that isn't air first
-            if (block.getType() != Material.AIR) {
+            if (!block.getType().isAir()) {
                 block.breakNaturally();
             }
 
-            // Force update without physics to set block type
-            state.update(true, false);
-            // Second update forces block state specific update
+            // Force update without physics; also applies block-entity data (containers, signs)
             state.update(true, false);
 
             // Anything alive standing here would be sealed inside the restored block
@@ -366,31 +364,11 @@ public class WorldRebuildHandler {
 
                 // Adjust delay
                 long delay = msToTicks(
-                        Math.max(configMinDelay, (int) (configDelay * Math.exp(-blocksRebuilt * configDelayFalloff)))
+                        Math.max(configMinDelay, (long) (configDelay * Math.exp(-blocksRebuilt * configDelayFalloff)))
                 );
                 task = plugin.getServer().getScheduler().runTaskLater(plugin, this, delay);
             }
         }
-    }
-
-    /**
-     * Cancels all active rebuilders without finishing the rebuilds.
-     *
-     * <p>This method stops all ongoing rebuilds immediately, leaving blocks unrestored.
-     * Completion callbacks still run, so anything waiting on a rebuild (such as hidden
-     * entities waiting to be revealed) is released rather than left in limbo.</p>
-     *
-     * <p>Note: Currently unused - use {@link #shutdown()} instead to finish rebuilds properly.</p>
-     */
-    public void cancelAllRebuilders() {
-        Set<BlockRebuilder> rebuildersCopy = new HashSet<>(blockRebuilders);
-        for (BlockRebuilder blockRebuilder : rebuildersCopy) {
-            if (blockRebuilder.task != null) {
-                blockRebuilder.task.cancel();
-            }
-            blockRebuilder.finish();
-        }
-        blockRebuilders.clear();
     }
 
     public static class BlockDistanceComparator implements Comparator<BlockState> {

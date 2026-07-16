@@ -4,5 +4,4 @@
 commands:
   reload-success: "<#6C757D>[<#6B7A5E>ʀᴇᴡɪɴᴅ<#6C757D>] <#8FAA87>Configuration reloaded."
   reload-failed: "<#6C757D>[<#C27B6B>ᴇʀʀᴏʀ<#6C757D>] <#C27B6B>Configuration reload failed. Check console."
-  no-permission: "<#6C757D>[<#C27B6B>ᴇʀʀᴏʀ<#6C757D>] <#C27B6B>You don't have permission."
   usage: "<#6C757D>[<#6B7A5E>ʀᴇᴡɪɴᴅ<#6C757D>] <#f2ebd7>Rewinds explosions with rebuilding animations. <#FCD472>/oakrewind reload <#6C757D>- <#f2ebd7>reload the configuration."

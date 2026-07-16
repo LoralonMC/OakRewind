@@ -55,11 +55,6 @@ public class ExplosionListener implements Listener {
     // pruning blockList() at a lower priority was silently overridden.
     @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST, ignoreCancelled = true)
     public void onEntityExplode(EntityExplodeEvent event) {
-        // Check if entity is null (shouldn't happen but be safe)
-        if (event.getEntity() == null) {
-            return;
-        }
-
         EntityType entityType = event.getEntityType();
 
         // Only handle configured explosion types when rebuild is enabled
