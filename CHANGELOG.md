@@ -14,7 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the rebuild and reappear once the blocks are back. Configure under `restore-entities`.
   Hanging entities are also protected when the blast never touched them but the rebuild
   removes the block holding them up, and when another plugin already shields them from
-  explosions, so they cannot pop off mid-rebuild.
+  explosions, so they cannot pop off mid-rebuild. Compatible with invisible-item-frame
+  plugins (e.g. InvisibleItemFramesLite) that replace the frame on break — the frame is
+  kept and rewound instead of being replaced and dropped.
 - Add `config-version` to config.yml so future updates can migrate settings automatically
 
 ### Changed

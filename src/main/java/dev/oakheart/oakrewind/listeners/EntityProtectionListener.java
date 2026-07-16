@@ -74,14 +74,16 @@ public class EntityProtectionListener implements Listener {
      * <p>Breaks by an entity are deliberately left alone, so a player can still take down a
      * shielded item frame by hand while the rebuild runs.</p>
      *
-     * <p>Deliberately not {@code ignoreCancelled}. Another plugin may already protect item
-     * frames from explosions and cancel this first — several invisible-item-frame plugins do
-     * exactly that. Skipping those events would leave the frame alive but unknown to us: never
-     * hidden, and never guarded against the {@code survives()} check below, so it would sit
-     * visibly in mid-air and then pop once its support block was gone. We still need to take
-     * custody of a frame someone else saved, so cancelling it again is harmless and required.</p>
+     * <p>Runs at {@code HIGH}, one step before the {@code HIGHEST} most plugins use, for a
+     * specific reason. Invisible-item-frame plugins intercept the break to drop a tagged item,
+     * and at least one (InvisibleItemFramesLite) does so by removing the frame entity outright
+     * inside its own {@code HIGHEST} handler. If it runs first the frame is already gone before
+     * we can protect it, and nothing can bring it back. Cancelling here first means its handler,
+     * which ignores already-cancelled events, is skipped and the frame is never removed. This is
+     * also why we do not set {@code ignoreCancelled}: a lower-priority plugin may have cancelled
+     * the break for its own reasons, and we still need to take custody of the frame.</p>
      */
-    @EventHandler(priority = EventPriority.HIGHEST)
+    @EventHandler(priority = EventPriority.HIGH)
     public void onHangingBreak(HangingBreakEvent event) {
         Entity entity = event.getEntity();
         if (!protectionManager.isProtectedType(entity.getType())) {
