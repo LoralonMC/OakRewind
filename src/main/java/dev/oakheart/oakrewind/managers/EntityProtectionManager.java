@@ -56,11 +56,35 @@ public class EntityProtectionManager {
     /**
      * State captured when an entity is hidden, so it can be put back exactly as it was.
      *
-     * @param entity  the entity itself, which stays live in the world throughout
-     * @param location where it stood when the explosion hit
-     * @param gravity whether it had gravity before we froze it
+     * <p>{@code claims} counts how many in-flight rebuilds hold this entity. Overlapping
+     * explosions can each claim the same entity, and it must stay hidden and frozen until
+     * the <em>last</em> of those rebuilds completes — revealing on the first would restore
+     * gravity while a later rebuild's crater under it is still open.</p>
      */
-    private record HiddenEntity(Entity entity, Location location, boolean gravity) {
+    private static final class HiddenEntity {
+        private final Entity entity;
+        private final Location location;
+        private final boolean gravity;
+        private int claims;
+
+        private HiddenEntity(Entity entity, Location location, boolean gravity) {
+            this.entity = entity;
+            this.location = location;
+            this.gravity = gravity;
+            this.claims = 1;
+        }
+
+        private Entity entity() {
+            return entity;
+        }
+
+        private Location location() {
+            return location;
+        }
+
+        private boolean gravity() {
+            return gravity;
+        }
     }
 
     public EntityProtectionManager(Plugin plugin, boolean enabled, Set<EntityType> protectedTypes) {
@@ -114,7 +138,7 @@ public class EntityProtectionManager {
      * questions, so both have to be asked.</p>
      *
      * <p>Call before the blocks are cleared, while the world can still be inspected. Marking an
-     * entity twice is harmless — the claim skips anything already hidden.</p>
+     * entity twice is harmless — each mark becomes a claim, and claims are counted.</p>
      */
     public void markHangingLosingSupport(List<Block> destroyedBlocks) {
         if (!enabled || destroyedBlocks.isEmpty()) {
@@ -131,8 +155,11 @@ public class EntityProtectionManager {
         // is enough to catch every candidate.
         blast.expand(1.0);
 
+        // Entities already hidden for an earlier rebuild are deliberately marked again: this
+        // blast is removing their support too, so it must hold its own claim on them. The
+        // earlier rebuild finishing first must not reveal them over this one's open crater.
         for (Entity entity : destroyedBlocks.get(0).getWorld().getNearbyEntities(blast)) {
-            if (!(entity instanceof Hanging) || !isProtectedType(entity.getType()) || isHidden(entity)) {
+            if (!(entity instanceof Hanging) || !isProtectedType(entity.getType())) {
                 continue;
             }
             if (losesSupport(entity, destroyed)) {
@@ -172,7 +199,13 @@ public class EntityProtectionManager {
 
         List<HiddenEntity> claimed = new ArrayList<>(pending.size());
         for (Entity entity : pending) {
-            if (entity.isValid() && !isHidden(entity)) {
+            HiddenEntity alreadyHidden = hidden.get(entity.getUniqueId());
+            if (alreadyHidden != null) {
+                // Also claimed by an earlier rebuild that is still running. Count this
+                // claim too, so the entity stays hidden until the last rebuild finishes.
+                alreadyHidden.claims++;
+                claimed.add(alreadyHidden);
+            } else if (entity.isValid()) {
                 claimed.add(hide(entity));
             }
         }
@@ -205,6 +238,16 @@ public class EntityProtectionManager {
     }
 
     /**
+     * Releases one rebuild's claim on an entity, revealing it once the last claim is gone.
+     */
+    private void reveal(HiddenEntity state) {
+        if (--state.claims > 0) {
+            return;
+        }
+        revealNow(state);
+    }
+
+    /**
      * Reveals an entity once its rebuild has finished, restoring what {@link #hide} changed.
      *
      * <p>The entity is shown to players unconditionally, even if it is no longer valid.
@@ -212,7 +255,7 @@ public class EntityProtectionManager {
      * that was removed or unloaded mid-rebuild would leave it invisible to everyone who was
      * online — long after it came back.</p>
      */
-    private void reveal(HiddenEntity state) {
+    private void revealNow(HiddenEntity state) {
         Entity entity = state.entity();
         hidden.remove(entity.getUniqueId());
 
@@ -251,8 +294,10 @@ public class EntityProtectionManager {
      * entities, but nothing may be left hidden if this manager is about to be replaced.</p>
      */
     public void revealAll() {
+        // Reveal unconditionally, ignoring claim counts: the rebuilds holding those claims
+        // are being torn down too, so waiting on them would leave entities hidden forever.
         for (HiddenEntity state : new ArrayList<>(hidden.values())) {
-            reveal(state);
+            revealNow(state);
         }
         hidden.clear();
         pending.clear();
