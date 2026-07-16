@@ -1,14 +1,21 @@
 package dev.oakheart.oakrewind;
 
 import dev.oakheart.oakrewind.config.ConfigManager;
+import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.SoundCategory;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
+import org.bukkit.entity.ArmorStand;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.util.BoundingBox;
 import org.bukkit.util.Vector;
 
 import java.util.*;
@@ -122,9 +129,63 @@ public class WorldRebuildHandler {
     }
 
     private void setAirNoDrops(Block block) {
-        if (block.getType() != Material.AIR) {
+        if (!block.getType().isAir()) {
             block.setType(Material.AIR, false);
         }
+    }
+
+    /**
+     * Lifts living entities out of a block that was just restored into them.
+     *
+     * <p>Restoring a block pays no attention to entities, so anything standing in the
+     * crater would be sealed inside and suffocate — in a plugin whose whole premise is
+     * that explosions leave no lasting harm. Anyone caught inside is teleported to the
+     * first open spot above, so a bottom-up rebuild carries them up with the floor.</p>
+     *
+     * <p>Armor stands are left alone: a shielded stand is frozen exactly where it
+     * belongs, and moving it would undo the entity rewind. Spectators can't suffocate.</p>
+     */
+    private void ejectEntities(Block block) {
+        if (block.isPassable()) {
+            return;
+        }
+        for (Entity entity : block.getWorld().getNearbyEntities(BoundingBox.of(block), WorldRebuildHandler::isEjectable)) {
+            Location destination = entity.getLocation();
+            destination.setY(firstOpenY(entity, block.getY() + 1));
+            entity.teleport(destination);
+        }
+    }
+
+    private static boolean isEjectable(Entity entity) {
+        if (!(entity instanceof LivingEntity) || entity instanceof ArmorStand || !entity.isValid()) {
+            return false;
+        }
+        return !(entity instanceof Player player && player.getGameMode() == GameMode.SPECTATOR);
+    }
+
+    /**
+     * @return the lowest Y at or above {@code startY} where the entity has headroom
+     */
+    private int firstOpenY(Entity entity, int startY) {
+        World world = entity.getWorld();
+        Location location = entity.getLocation();
+        int height = Math.max(1, (int) Math.ceil(entity.getHeight()));
+        int highestY = world.getMaxHeight() - height;
+        for (int y = startY; y <= highestY; y++) {
+            if (isOpen(world, location.getBlockX(), y, location.getBlockZ(), height)) {
+                return y;
+            }
+        }
+        return highestY;
+    }
+
+    private boolean isOpen(World world, int x, int y, int z, int height) {
+        for (int i = 0; i < height; i++) {
+            if (!world.getBlockAt(x, y + i, z).isPassable()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -256,6 +317,9 @@ public class WorldRebuildHandler {
             state.update(true, false);
             // Second update forces block state specific update
             state.update(true, false);
+
+            // Anything alive standing here would be sealed inside the restored block
+            ejectEntities(block);
 
             // Play sound
             block.getWorld().playSound(block.getLocation(), block.getBlockSoundGroup().getPlaceSound(), SoundCategory.BLOCKS, 1.0f, 0.8f);

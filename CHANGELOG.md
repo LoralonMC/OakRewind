@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Players and mobs standing in a crater are now lifted on top of rebuilt blocks instead of
+  being sealed inside them and suffocating.
 - TNT blocks caught in a rebuilt explosion now prime and chain like vanilla. Previously they
   were rebuilt as inert blocks, silently breaking TNT chain reactions near any rebuilt explosion.
 - Correct the `MINECART_TNT` explosion type to `TNT_MINECART`. The old name did not exist,
