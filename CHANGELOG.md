@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- TNT blocks caught in a rebuilt explosion now prime and chain like vanilla. Previously they
+  were rebuilt as inert blocks, silently breaking TNT chain reactions near any rebuilt explosion.
 - Correct the `MINECART_TNT` explosion type to `TNT_MINECART`. The old name did not exist,
   so TNT minecart explosions were never rebuilt and logged an "Invalid explosion type"
   warning on startup. Existing configs are corrected automatically.

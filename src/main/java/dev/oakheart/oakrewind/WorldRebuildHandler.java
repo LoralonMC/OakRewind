@@ -86,17 +86,22 @@ public class WorldRebuildHandler {
      *                   by {@link #shutdown()} or when there was nothing to rebuild at all.
      */
     public void rebuild(final List<Block> blocks, final Runnable onComplete) {
-        // Store a snapshot of all block states
+        // Store a snapshot of all block states. TNT is deliberately left alone: the server's
+        // post-event block pass primes any TNT block it still finds into a live entity,
+        // preserving chain reactions. Snapshotting it here would air it before that pass
+        // runs, so it would never prime and would come back as an inert block instead.
         final List<BlockState> states = new ArrayList<>();
         for (Block block : blocks) {
-            if (block.getType() != Material.AIR) {
+            if (!block.getType().isAir() && block.getType() != Material.TNT) {
                 states.add(block.getState());
             }
         }
 
         // Set everything to air without triggering physics
         for (Block block : blocks) {
-            setAirNoDrops(block);
+            if (block.getType() != Material.TNT) {
+                setAirNoDrops(block);
+            }
         }
 
         // Nothing to rebuild: an empty rebuilder would never be scheduled and so would never
