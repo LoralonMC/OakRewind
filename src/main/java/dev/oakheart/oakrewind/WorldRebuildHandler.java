@@ -301,10 +301,15 @@ public class WorldRebuildHandler {
         }
 
         private void rebuildNextBlock() {
-            rebuildBlock(states.remove(states.size() - 1));
+            rebuildBlock(states.remove(states.size() - 1), true);
         }
 
-        private void rebuildBlock(final BlockState state) {
+        /**
+         * @param effects whether to play the placement sound and particles. Bulk placement
+         *                on shutdown or reload passes false — finishing a large rebuild in
+         *                one tick would otherwise fire every sound and particle at once.
+         */
+        private void rebuildBlock(final BlockState state, final boolean effects) {
             final Block block = state.getBlock();
             ++blocksRebuilt;
 
@@ -320,6 +325,10 @@ public class WorldRebuildHandler {
 
             // Anything alive standing here would be sealed inside the restored block
             ejectEntities(block);
+
+            if (!effects) {
+                return;
+            }
 
             // Play sound
             block.getWorld().playSound(block.getLocation(), block.getBlockSoundGroup().getPlaceSound(), SoundCategory.BLOCKS, 1.0f, 0.8f);
@@ -342,7 +351,7 @@ public class WorldRebuildHandler {
                 task.cancel();
             }
             for (final BlockState state : states) {
-                rebuildBlock(state);
+                rebuildBlock(state, false);
             }
             finish();
         }

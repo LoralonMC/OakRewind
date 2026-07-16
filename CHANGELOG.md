@@ -29,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Finishing rebuilds on shutdown or `/oakrewind reload` now places the remaining blocks
+  silently. Previously every placement sound and particle fired in the same tick, which
+  could mean thousands of packets at once after a large explosion.
 - Players and mobs standing in a crater are now lifted on top of rebuilt blocks instead of
   being sealed inside them and suffocating.
 - TNT blocks caught in a rebuilt explosion now prime and chain like vanilla. Previously they
