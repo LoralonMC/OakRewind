@@ -40,6 +40,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Correct the `MINECART_TNT` explosion type to `TNT_MINECART`. The old name did not exist,
   so TNT minecart explosions were never rebuilt and logged an "Invalid explosion type"
   warning on startup. Existing configs are corrected automatically.
+- The particle types suggested in config.yml (`EXPLOSION_NORMAL`, `SMOKE_NORMAL`,
+  `VILLAGER_HAPPY`, `ENCHANTMENT_TABLE`) no longer exist in modern Minecraft; the comment
+  now lists the current names (`POOF`, `SMOKE`, `HAPPY_VILLAGER`, `ENCHANT`).
+- An empty `enabled-explosion-types` list is now respected (nothing is rebuilt, with a
+  startup warning) instead of silently rebuilding creeper explosions anyway.
 
 ## [1.0.0] - 2025-02-21
 

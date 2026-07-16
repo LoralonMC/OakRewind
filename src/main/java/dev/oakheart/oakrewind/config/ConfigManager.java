@@ -54,7 +54,7 @@ public class ConfigManager {
 
     // Cached config values
     private boolean enableRebuild;
-    private List<EntityType> enabledExplosionTypes;
+    private Set<EntityType> enabledExplosionTypes;
     private boolean restoreEntitiesEnabled;
     private Set<EntityType> restoredEntityTypes;
     private long initialRebuildDelay;
@@ -222,12 +222,18 @@ public class ConfigManager {
         }
 
         List<String> explosionTypeNames = configToValidate.getStringList("enabled-explosion-types");
+        int validExplosionTypes = 0;
         for (String typeName : explosionTypeNames) {
             try {
                 EntityType.valueOf(typeName.toUpperCase());
+                validExplosionTypes++;
             } catch (IllegalArgumentException e) {
                 warnings.add("Invalid explosion type: " + typeName);
             }
+        }
+        if (validExplosionTypes == 0 && configToValidate.getBoolean("enable-rebuild", true)) {
+            warnings.add("enabled-explosion-types has no valid entries — no explosions will be rebuilt. "
+                    + "Set enable-rebuild: false instead if this is intentional.");
         }
 
         for (String typeName : configToValidate.getStringList("restore-entities.types")) {
@@ -259,21 +265,14 @@ public class ConfigManager {
     private void cacheValues() {
         enableRebuild = config.getBoolean("enable-rebuild", true);
 
-        // Load enabled explosion types
-        enabledExplosionTypes = new ArrayList<>();
-        List<String> explosionTypeNames = config.getStringList("enabled-explosion-types");
-        if (explosionTypeNames.isEmpty()) {
-            enabledExplosionTypes.add(EntityType.CREEPER);
-        } else {
-            for (String typeName : explosionTypeNames) {
-                try {
-                    enabledExplosionTypes.add(EntityType.valueOf(typeName.toUpperCase()));
-                } catch (IllegalArgumentException e) {
-                    // Already warned in validate()
-                }
-            }
-            if (enabledExplosionTypes.isEmpty()) {
-                enabledExplosionTypes.add(EntityType.CREEPER);
+        // Load enabled explosion types. An empty result is respected — validate() already
+        // warned about it — rather than silently falling back to rebuilding creepers.
+        enabledExplosionTypes = EnumSet.noneOf(EntityType.class);
+        for (String typeName : config.getStringList("enabled-explosion-types")) {
+            try {
+                enabledExplosionTypes.add(EntityType.valueOf(typeName.toUpperCase()));
+            } catch (IllegalArgumentException e) {
+                // Already warned in validate()
             }
         }
 
@@ -336,7 +335,7 @@ public class ConfigManager {
         return enableRebuild;
     }
 
-    public List<EntityType> getEnabledExplosionTypes() {
+    public Set<EntityType> getEnabledExplosionTypes() {
         return enabledExplosionTypes;
     }
 

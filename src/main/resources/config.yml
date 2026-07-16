@@ -64,7 +64,7 @@ rebuild:
   # Particle effects during rebuild
   particles:
     enabled: true
-    # Particle type: CLOUD, EXPLOSION_NORMAL, SMOKE_NORMAL, VILLAGER_HAPPY, ENCHANTMENT_TABLE
+    # Particle type: CLOUD, POOF, SMOKE, HAPPY_VILLAGER, ENCHANT
     type: CLOUD
     # Number of particles per block
     count: 5

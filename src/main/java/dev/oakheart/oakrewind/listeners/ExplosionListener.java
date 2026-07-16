@@ -8,7 +8,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityExplodeEvent;
 
 import java.util.ArrayList;
-import java.util.List;
+import java.util.Set;
 
 /**
  * Listens for explosion events and triggers block rebuilding based on configuration.
@@ -23,7 +23,7 @@ public class ExplosionListener implements Listener {
     private final WorldRebuildHandler worldRebuildHandler;
     private final EntityProtectionManager protectionManager;
     private final boolean configEnableRebuild;
-    private final List<EntityType> configEnabledExplosionTypes;
+    private final Set<EntityType> configEnabledExplosionTypes;
 
     /**
      * Creates a new ExplosionListener with the specified configuration.
@@ -31,10 +31,10 @@ public class ExplosionListener implements Listener {
      * @param worldRebuildHandler the handler responsible for rebuilding blocks
      * @param protectionManager the manager holding entities shielded from this explosion
      * @param enableRebuild whether rebuilding is enabled
-     * @param enabledExplosionTypes list of entity types whose explosions should trigger rebuilding
+     * @param enabledExplosionTypes entity types whose explosions should trigger rebuilding
      */
     public ExplosionListener(WorldRebuildHandler worldRebuildHandler, EntityProtectionManager protectionManager,
-                             boolean enableRebuild, List<EntityType> enabledExplosionTypes) {
+                             boolean enableRebuild, Set<EntityType> enabledExplosionTypes) {
         this.worldRebuildHandler = worldRebuildHandler;
         this.protectionManager = protectionManager;
         this.configEnableRebuild = enableRebuild;

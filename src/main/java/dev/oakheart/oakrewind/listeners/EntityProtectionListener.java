@@ -10,7 +10,7 @@ import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.hanging.HangingBreakEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 
-import java.util.List;
+import java.util.Set;
 
 /**
  * Intercepts the ways an explosion destroys a decoration entity, so it can rewind instead.
@@ -24,11 +24,11 @@ public class EntityProtectionListener implements Listener {
 
     private final EntityProtectionManager protectionManager;
     private final boolean rebuildEnabled;
-    private final List<EntityType> enabledExplosionTypes;
+    private final Set<EntityType> enabledExplosionTypes;
 
     public EntityProtectionListener(EntityProtectionManager protectionManager,
                                     boolean rebuildEnabled,
-                                    List<EntityType> enabledExplosionTypes) {
+                                    Set<EntityType> enabledExplosionTypes) {
         this.protectionManager = protectionManager;
         this.rebuildEnabled = rebuildEnabled;
         this.enabledExplosionTypes = enabledExplosionTypes;
