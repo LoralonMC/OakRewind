@@ -139,8 +139,13 @@ public class WorldRebuildHandler {
      *
      * <p>Restoring a block pays no attention to entities, so anything standing in the
      * crater would be sealed inside and suffocate — in a plugin whose whole premise is
-     * that explosions leave no lasting harm. Anyone caught inside is teleported to the
-     * first open spot above, so a bottom-up rebuild carries them up with the floor.</p>
+     * that explosions leave no lasting harm. Anyone caught inside is moved to the
+     * nearest open spot, preferring the same level and solid footing, so a player in a
+     * cave steps aside rather than surfacing (an upward-only scan sent cave players to
+     * ground level: the column above them is solid rock, so the first opening was the
+     * surface). Normal rebuilds rarely get here — occupied blocks are deferred first
+     * (see {@link BlockRebuilder}); this handles the forced paths (deferral cap,
+     * shutdown, reload).</p>
      *
      * <p>Armor stands are left alone: a shielded stand is frozen exactly where it
      * belongs, and moving it would undo the entity rewind. Spectators can't suffocate.</p>
@@ -150,10 +155,64 @@ public class WorldRebuildHandler {
             return;
         }
         for (Entity entity : block.getWorld().getNearbyEntities(BoundingBox.of(block), WorldRebuildHandler::isEjectable)) {
-            Location destination = entity.getLocation();
-            destination.setY(firstOpenY(entity, block.getY() + 1));
-            entity.teleport(destination);
+            entity.teleport(findNearestOpenSpot(entity, block));
         }
+    }
+
+    // Nearest-open-spot search bounds. Horizontal is generous (a crater is at most a
+    // few blocks wide); vertical is tight so "nearby" never means another cave layer.
+    private static final int EJECT_SEARCH_RADIUS = 8;
+    private static final int EJECT_SEARCH_VERTICAL = 4;
+
+    /**
+     * Finds the best open spot near the entity's current position: the closest
+     * position with headroom, scored to prefer staying on the same level, moving up
+     * over down, and having solid ground underfoot over hovering into a drop.
+     * Falls back to the legacy straight-up scan if the search box is entirely solid
+     * (entity sealed deep inside rock with no cavity in range).
+     */
+    private Location findNearestOpenSpot(Entity entity, Block sealedBlock) {
+        World world = entity.getWorld();
+        Location location = entity.getLocation();
+        int height = Math.max(1, (int) Math.ceil(entity.getHeight()));
+        int baseX = location.getBlockX();
+        int baseY = location.getBlockY();
+        int baseZ = location.getBlockZ();
+
+        int bestScore = Integer.MAX_VALUE;
+        int bestX = 0, bestY = 0, bestZ = 0;
+        for (int dx = -EJECT_SEARCH_RADIUS; dx <= EJECT_SEARCH_RADIUS; dx++) {
+            for (int dz = -EJECT_SEARCH_RADIUS; dz <= EJECT_SEARCH_RADIUS; dz++) {
+                for (int dy = -EJECT_SEARCH_VERTICAL; dy <= EJECT_SEARCH_VERTICAL; dy++) {
+                    int x = baseX + dx, y = baseY + dy, z = baseZ + dz;
+                    if (y < world.getMinHeight() || y > world.getMaxHeight() - height) {
+                        continue;
+                    }
+                    if (!isOpen(world, x, y, z, height)) {
+                        continue;
+                    }
+                    boolean hasFloor = y > world.getMinHeight() && !world.getBlockAt(x, y - 1, z).isPassable();
+                    // Weights: vertical distance counts 4x (stay on your level), downward
+                    // adds a nudge (prefer up on ties), floorless spots cost as much as
+                    // ~8 blocks of horizontal distance (step aside beats dangling).
+                    int score = dx * dx + dz * dz + dy * dy * 4 + (dy < 0 ? 2 : 0) + (hasFloor ? 0 : 64);
+                    if (score < bestScore) {
+                        bestScore = score;
+                        bestX = x;
+                        bestY = y;
+                        bestZ = z;
+                    }
+                }
+            }
+        }
+
+        Location destination = location.clone();
+        if (bestScore != Integer.MAX_VALUE) {
+            destination.set(bestX + 0.5, bestY, bestZ + 0.5);
+        } else {
+            destination.setY(firstOpenY(entity, sealedBlock.getY() + 1));
+        }
+        return destination;
     }
 
     private static boolean isEjectable(Entity entity) {
@@ -207,8 +266,15 @@ public class WorldRebuildHandler {
     }
 
     public class BlockRebuilder implements Runnable {
+        // Retries before an occupied block is placed anyway and the entity ejected.
+        // Retries only start once the rest of the queue is exhausted, one per
+        // scheduled tick at the configured min delay — roughly a few seconds of
+        // standing in the last open spot of the crater.
+        private static final int MAX_DEFERRALS = 100;
+
         private final List<BlockState> states;
         private final Runnable onComplete;
+        private final Map<BlockState, Integer> deferrals = new IdentityHashMap<>();
         private BukkitTask task = null;
         private long blocksRebuilt = 0;
         private boolean completed = false;
@@ -300,8 +366,40 @@ public class WorldRebuildHandler {
             }
         }
 
-        private void rebuildNextBlock() {
-            rebuildBlock(states.remove(states.size() - 1), true);
+        /**
+         * Restores the next block, unless a living entity is standing where it goes.
+         * An occupied block is deferred — moved to the far end of the queue (blocks
+         * are consumed from the end, so index 0 rebuilds last) — and the animation
+         * continues around the entity. This is the expected behavior from the player's
+         * side: the wall doesn't materialize inside you while you stand in the crater.
+         * Each state gets {@code MAX_DEFERRALS} retries; after that it is placed
+         * anyway and {@link #ejectEntities} relocates the entity, so a parked player
+         * or mob can't hold the rebuild open forever.
+         *
+         * @return true if a block was placed, false if it was deferred
+         */
+        private boolean rebuildNextBlock() {
+            BlockState state = states.remove(states.size() - 1);
+            if (shouldDefer(state)) {
+                states.add(0, state);
+                return false;
+            }
+            deferrals.remove(state);
+            rebuildBlock(state, true);
+            return true;
+        }
+
+        private boolean shouldDefer(BlockState state) {
+            // isSolid() approximates "would seal an entity in" without placing the
+            // block first; over-deferring an occupied slab or stair is harmless.
+            if (!state.getType().isSolid()) {
+                return false;
+            }
+            Block block = state.getBlock();
+            if (block.getWorld().getNearbyEntities(BoundingBox.of(block), WorldRebuildHandler::isEjectable).isEmpty()) {
+                return false;
+            }
+            return deferrals.merge(state, 1, Integer::sum) <= MAX_DEFERRALS;
         }
 
         /**
@@ -360,12 +458,14 @@ public class WorldRebuildHandler {
                 finish();
             } else {
                 // Rebuild next block
-                rebuildNextBlock();
+                boolean placed = rebuildNextBlock();
 
-                // Adjust delay
-                long delay = msToTicks(
-                        Math.max(configMinDelay, (long) (configDelay * Math.exp(-blocksRebuilt * configDelayFalloff)))
-                );
+                // Adjust delay. A deferred (occupied) block retries at the min delay:
+                // waiting the decayed animation delay per retry would let a player
+                // standing in a small crater stall the rebuild for minutes.
+                long delay = placed
+                        ? msToTicks(Math.max(configMinDelay, (long) (configDelay * Math.exp(-blocksRebuilt * configDelayFalloff))))
+                        : msToTicks(configMinDelay);
                 task = plugin.getServer().getScheduler().runTaskLater(plugin, this, delay);
             }
         }

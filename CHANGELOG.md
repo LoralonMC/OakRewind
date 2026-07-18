@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Players caught in a rebuilding crater are no longer teleported to the surface. The
+  upward-only ejection scan assumed open sky above; inside a cave the column above is
+  solid rock, so anyone standing where a block restored was sent to ground level
+  (reported via the first Discord bug ticket). Rebuilds now skip a block while a living
+  entity occupies it and retry it last, so the wall no longer materializes inside anyone;
+  if someone parks in the last open spot (~100 retries at the min delay, a few seconds),
+  the block places and they are moved to the nearest open spot instead — same level and
+  solid footing preferred, straight-up scan only as a last resort. Applies to mobs too.
+
 ## [1.1.0] - 2026-07-16
 
 ### Added
