@@ -4,6 +4,7 @@ import dev.oakheart.message.MessageManager;
 import dev.oakheart.oakrewind.config.ConfigManager;
 import dev.oakheart.oakrewind.listeners.EntityProtectionListener;
 import dev.oakheart.oakrewind.listeners.ExplosionListener;
+import dev.oakheart.oakrewind.listeners.WitherGriefListener;
 import dev.oakheart.oakrewind.managers.EntityProtectionManager;
 import org.bstats.bukkit.Metrics;
 import org.bukkit.event.HandlerList;
@@ -15,6 +16,7 @@ public final class OakRewind extends JavaPlugin {
 
     private ExplosionListener explosionListener;
     private EntityProtectionListener entityProtectionListener;
+    private WitherGriefListener witherGriefListener;
     private EntityProtectionManager entityProtectionManager;
     private WorldRebuildHandler worldRebuildHandler;
     private ConfigManager configManager;
@@ -39,6 +41,9 @@ public final class OakRewind extends JavaPlugin {
     public void onDisable() {
         // Finishing the rebuilds reveals their entities through the completion callbacks;
         // revealAll then catches anything that was shielded but never claimed by a rebuild.
+        if (witherGriefListener != null) {
+            witherGriefListener.discard();
+        }
         if (worldRebuildHandler != null) {
             worldRebuildHandler.shutdown();
         }
@@ -83,8 +88,16 @@ public final class OakRewind extends JavaPlugin {
                 configManager.isEnableRebuild(),
                 configManager.getEnabledExplosionTypes()
         );
+        witherGriefListener = new WitherGriefListener(
+                this,
+                worldRebuildHandler,
+                entityProtectionManager,
+                configManager.isEnableRebuild(),
+                configManager.getEnabledExplosionTypes()
+        );
         getServer().getPluginManager().registerEvents(explosionListener, this);
         getServer().getPluginManager().registerEvents(entityProtectionListener, this);
+        getServer().getPluginManager().registerEvents(witherGriefListener, this);
     }
 
     private void registerCommands() {
@@ -103,6 +116,8 @@ public final class OakRewind extends JavaPlugin {
         // Unregister the old listeners
         HandlerList.unregisterAll(explosionListener);
         HandlerList.unregisterAll(entityProtectionListener);
+        HandlerList.unregisterAll(witherGriefListener);
+        witherGriefListener.discard();
 
         // Finish all ongoing rebuilds immediately before creating new handler. This reveals
         // any hidden entities, so no shielded entity is stranded by the manager being replaced.

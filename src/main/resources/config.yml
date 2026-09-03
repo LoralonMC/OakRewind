@@ -5,7 +5,9 @@ enable-rebuild: true
 
 # Which explosion types should trigger rebuilding
 # Available types: CREEPER, TNT, TNT_MINECART, FIREBALL, WITHER_SKULL, WITHER, END_CRYSTAL
-# Note: WITHER handles the spawn explosion, WITHER_SKULL handles the projectiles
+# Note: a wither breaks blocks three ways and needs both entries to be fully covered.
+# WITHER handles its spawn explosion AND the block smashing it does in melee (which is
+# mob griefing, not an explosion); WITHER_SKULL handles the projectiles.
 enabled-explosion-types:
   - CREEPER
   - TNT

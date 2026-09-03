@@ -5,10 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.1.2] - 2026-07-29
 
 ### Fixed
 
+- Blocks a wither smashes in melee are now rebuilt. A wither breaks blocks three ways and
+  only two of them are explosions: its spawn blast and its skulls fire `EntityExplodeEvent`
+  and were rebuilt, but the box it clears by hand is mob griefing and fires
+  `EntityChangeBlockEvent` once per block, which nothing listened for. Those blocks stayed
+  gone permanently while the skull craters around them healed, which read as a wither being
+  usable to grief claims (reported via Discord bug ticket). The grief event is cancelled
+  rather than observed, because it fires before the break and the break drops items —
+  rebuilding afterwards would have handed out a free copy of every block the wither touched.
+  Covered by the existing `WITHER` entry in `enabled-explosion-types`.
 - Players caught in a rebuilding crater are no longer teleported to the surface. The
   upward-only ejection scan assumed open sky above; inside a cave the column above is
   solid rock, so anyone standing where a block restored was sent to ground level
