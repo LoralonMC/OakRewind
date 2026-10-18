@@ -9,6 +9,8 @@ import org.bukkit.SoundCategory;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
+import org.bukkit.block.Chest;
+import org.bukkit.block.Container;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
@@ -97,16 +99,21 @@ public class WorldRebuildHandler {
         // post-event block pass primes any TNT block it still finds into a live entity,
         // preserving chain reactions. Snapshotting it here would air it before that pass
         // runs, so it would never prime and would come back as an inert block instead.
+        //
+        // A block mid-push is left alone too. It is a MOVING_PISTON whose block entity holds the
+        // block being moved, and a BlockState snapshot does not carry that entity, so restoring
+        // it puts back a bare MOVING_PISTON: invisible, never completing, and impossible to build
+        // into, surviving restarts. Untouched, the push simply finishes on the next tick.
         final List<BlockState> states = new ArrayList<>();
         for (Block block : blocks) {
-            if (!block.getType().isAir() && block.getType() != Material.TNT) {
+            if (!block.getType().isAir() && isRebuildable(block)) {
                 states.add(block.getState());
             }
         }
 
         // Set everything to air without triggering physics
         for (Block block : blocks) {
-            if (block.getType() != Material.TNT) {
+            if (isRebuildable(block)) {
                 setAirNoDrops(block);
             }
         }
@@ -124,13 +131,46 @@ public class WorldRebuildHandler {
         blockRebuilders.add(new BlockRebuilder(states, onComplete));
     }
 
+    /** Whether this plugin takes custody of the block. See {@link #rebuild(List, Runnable)}. */
+    private static boolean isRebuildable(Block block) {
+        Material type = block.getType();
+        return type != Material.TNT && type != Material.MOVING_PISTON;
+    }
+
     private long msToTicks(long ms) {
         return ms / MS_PER_TICK;
     }
 
     private void setAirNoDrops(Block block) {
-        if (!block.getType().isAir()) {
-            block.setType(Material.AIR, false);
+        if (block.getType().isAir()) {
+            return;
+        }
+        emptyContainer(block);
+        block.setType(Material.AIR, false);
+    }
+
+    /**
+     * Empties a container in the world before its block is removed.
+     *
+     * <p>Removing a container drops its contents as a side effect of the block entity going
+     * away. {@code setType}'s {@code applyPhysics} flag does not suppress that: it only skips
+     * neighbour updates. Without this the contents land on the floor and then come back inside
+     * the block when it is restored, which is a duplication bug.
+     *
+     * <p>The snapshot {@link #rebuild} took is an independent copy of the block entity, so
+     * emptying the live inventory here loses nothing. The contents return with the block.
+     *
+     * <p>Chests are handled separately on purpose. {@link Container#getInventory()} on one half
+     * of a double chest returns the <em>combined</em> inventory, so clearing it would also empty
+     * the other half, which may not even be part of the explosion. {@code getBlockInventory} is
+     * this block's half alone, which is exactly what the snapshot holds and restores.
+     */
+    private void emptyContainer(Block block) {
+        BlockState state = block.getState();
+        if (state instanceof Chest chest) {
+            chest.getBlockInventory().clear();
+        } else if (state instanceof Container container) {
+            container.getInventory().clear();
         }
     }
 

@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [1.1.4] - 2026-10-18
+
+### Fixed
+
+- An explosion that caught a piston mid-push left permanent invisible blocks behind. A block
+  being pushed is a `MOVING_PISTON` whose block entity holds the block in motion, and a
+  `BlockState` snapshot does not carry that entity, so the rebuild restored a bare
+  `MOVING_PISTON` that never completed. It looked like a hole but could not be built into,
+  and survived chunk unloads and restarts. Blocks mid-push are now left out of the blast and
+  the rebuild, so the push finishes on the next tick as if nothing happened. Applies to
+  withers too.
+
+## [1.1.3] - 2026-09-14
+
+### Fixed
+
+- Containers no longer duplicate their contents. A creeper breaking a chest spilled the
+  contents on the floor and then the chest came back with them still inside. Removing a
+  container drops its contents as a side effect of the block entity going away, and
+  `setType`'s `applyPhysics` flag does not suppress that, it only skips neighbour updates.
+  The live container is now emptied before the block is aired; the snapshot is an
+  independent copy, so the contents still return with the block.
+
+  The drop was ours, not the server's. `EntityExplodeEvent` fires before blocks are
+  removed and the snapshot loop skips blocks that are already air, so if the server had
+  destroyed the chest first there would have been nothing to rebuild at all.
+
+  Only visible on Paper 26.2 and later, which is why this survived since 1.0.0.
+
+  Half of a double chest is emptied with `getBlockInventory`, not `getInventory`: the
+  latter returns the combined inventory and would empty the other half too, which may not
+  even be in the explosion.
+
 ## [1.1.2] - 2026-07-29
 
 ### Fixed

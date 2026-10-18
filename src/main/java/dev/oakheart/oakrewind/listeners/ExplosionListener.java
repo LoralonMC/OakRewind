@@ -2,6 +2,7 @@ package dev.oakheart.oakrewind.listeners;
 
 import dev.oakheart.oakrewind.WorldRebuildHandler;
 import dev.oakheart.oakrewind.managers.EntityProtectionManager;
+import org.bukkit.Material;
 import org.bukkit.entity.EntityType;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -59,6 +60,10 @@ public class ExplosionListener implements Listener {
 
         // Only handle configured explosion types when rebuild is enabled
         if (configEnableRebuild && configEnabledExplosionTypes.contains(entityType)) {
+            // A block mid-push is skipped by the rebuild (see WorldRebuildHandler#rebuild), so the
+            // blast must not destroy it either. Left out of the list, the push completes as normal.
+            event.blockList().removeIf(block -> block.getType() == Material.MOVING_PISTON);
+
             // Also take custody of hanging entities the blast never touched but whose support
             // block is about to be cleared. Must happen before rebuild() turns them to air.
             protectionManager.markHangingLosingSupport(event.blockList());
