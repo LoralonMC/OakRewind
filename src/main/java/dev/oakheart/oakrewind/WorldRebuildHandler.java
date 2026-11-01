@@ -12,6 +12,7 @@ import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.Campfire;
 import org.bukkit.block.Chest;
+import org.bukkit.block.Furnace;
 import org.bukkit.block.Container;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
@@ -179,6 +180,14 @@ public class WorldRebuildHandler {
             chest.getBlockInventory().clear();
         } else if (state instanceof TileStateInventoryHolder holder) {
             holder.getInventory().clear();
+            // A furnace's removal also pops the XP stored for the recipes it has cooked, and the
+            // rebuild restores that store, so every rewound blast paid it out again: an XP farm.
+            // A fresh state (the live inventory is already empty, so update() copies nothing
+            // back) with its recipes cleared; the snapshot rebuild() holds is never touched.
+            if (block.getState() instanceof Furnace furnace && !furnace.getRecipesUsed().isEmpty()) {
+                furnace.setRecipesUsed(java.util.Map.of());
+                furnace.update(true, false);
+            }
         } else if (state instanceof Campfire campfire) {
             for (int slot = 0; slot < campfire.getSize(); slot++) {
                 campfire.setItem(slot, null);

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-11-01
+
+### Security
+
+- Rewound explosions paid out a furnace's stored recipe XP every time: removing a furnace pops
+  that XP, and the rebuild restored the store with the block. The store is now cleared before the
+  block is removed (the restored furnace keeps its items, not its pending XP).
+
 ## [1.2.1] - 2026-11-01
 
 ### Security
