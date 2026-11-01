@@ -1,6 +1,7 @@
 package dev.oakheart.oakrewind;
 
 import dev.oakheart.oakrewind.config.ConfigManager;
+import io.papermc.paper.block.TileStateInventoryHolder;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -9,6 +10,7 @@ import org.bukkit.SoundCategory;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
+import org.bukkit.block.Campfire;
 import org.bukkit.block.Chest;
 import org.bukkit.block.Container;
 import org.bukkit.entity.ArmorStand;
@@ -164,13 +166,24 @@ public class WorldRebuildHandler {
      * of a double chest returns the <em>combined</em> inventory, so clearing it would also empty
      * the other half, which may not even be part of the explosion. {@code getBlockInventory} is
      * this block's half alone, which is exactly what the snapshot holds and restores.
+     *
+     * <p>"Container" here means every block entity that holds items, not Bukkit's
+     * {@link Container}. Decorated pots, chiseled bookshelves, shelves, jukeboxes and lecterns
+     * are {@link TileStateInventoryHolder}s but not Containers, and they spill on removal the
+     * same way; matching only Container left them duplicating their contents. Campfires keep
+     * their items outside any inventory, so they are emptied slot by slot.
      */
     private void emptyContainer(Block block) {
         BlockState state = block.getState();
         if (state instanceof Chest chest) {
             chest.getBlockInventory().clear();
-        } else if (state instanceof Container container) {
-            container.getInventory().clear();
+        } else if (state instanceof TileStateInventoryHolder holder) {
+            holder.getInventory().clear();
+        } else if (state instanceof Campfire campfire) {
+            for (int slot = 0; slot < campfire.getSize(); slot++) {
+                campfire.setItem(slot, null);
+            }
+            campfire.update(true, false);
         }
     }
 

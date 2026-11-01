@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-11-01
+
+### Security
+
+- Explosion rebuilds duplicated the contents of decorated pots, chiseled bookshelves, shelves,
+  jukeboxes, lecterns and campfires: the items dropped when the block was removed and came back
+  inside it when it was rebuilt. 1.1.3 only emptied Bukkit `Container`s first; every block entity
+  that holds items (`TileStateInventoryHolder`, plus campfires) is now emptied before removal.
+
 ## [1.2.0] - 2026-10-20
 
 ### Changed
